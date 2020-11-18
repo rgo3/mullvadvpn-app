@@ -73,12 +73,14 @@ class TunnelStateNotification(val context: Context) {
         if (newValue == true) {
             update()
         } else {
+            android.util.Log.d("mullvad", "Hiding notification")
             channel.notificationManager.cancel(NOTIFICATION_ID)
         }
     }
 
     private fun update() {
         if (visible && (!reconnecting || !showingReconnecting)) {
+            android.util.Log.d("mullvad", "Showing notification")
             channel.notificationManager.notify(NOTIFICATION_ID, build())
         }
     }
@@ -98,6 +100,8 @@ class TunnelStateNotification(val context: Context) {
         } else {
             emptyList()
         }
+
+        android.util.Log.d("mullvad", "Building tunnel state notification ($tunnelState)")
 
         return channel.buildNotification(pendingIntent, notificationText, actions, deleteIntent)
     }

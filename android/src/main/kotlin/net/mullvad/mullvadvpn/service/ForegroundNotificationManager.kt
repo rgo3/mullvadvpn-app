@@ -141,6 +141,7 @@ class ForegroundNotificationManager(
     }
 
     private fun showOnForeground() {
+        android.util.Log.d("mullvad", "Showing foreground notification")
         service.startForeground(
             TunnelStateNotification.NOTIFICATION_ID,
             tunnelStateNotification.build()
@@ -154,6 +155,7 @@ class ForegroundNotificationManager(
             if (shouldBeOnForeground) {
                 showOnForeground()
             } else {
+                android.util.Log.d("mullvad", "Detaching foreground notification")
                 if (Build.VERSION.SDK_INT >= 24) {
                     service.stopForeground(Service.STOP_FOREGROUND_DETACH)
                 } else {
