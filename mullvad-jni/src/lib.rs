@@ -348,6 +348,7 @@ pub extern "system" fn Java_net_mullvad_mullvadvpn_service_MullvadDaemon_deiniti
     set_daemon_interface_address(&env, &this, 0);
 
     if daemon_interface_address != ptr::null_mut() {
+        log::debug!("Dropping daemon pointer {:?}", daemon_interface_address);
         let _ = unsafe { Box::from_raw(daemon_interface_address) };
     }
 }
