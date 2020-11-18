@@ -3,7 +3,7 @@ use fern::{
     Output,
 };
 use log;
-use std::{fmt, io, path::PathBuf};
+use std::{fmt, io, path::PathBuf, thread};
 use talpid_core::logging::rotate_log;
 
 #[derive(err_derive::Error, Debug)]
@@ -152,10 +152,11 @@ impl Formatter {
         let message = escape_newlines(format!("{}", message));
 
         out.finish(format_args!(
-            "{}[{}][{}] {}",
+            "{}[{}][{:?}][{}] {}",
             chrono::Local::now().format(self.get_timetsamp_fmt()),
-            record.target(),
             self.get_record_level(record.level()),
+            thread::current().id(),
+            record.target(),
             message,
         ))
     }
