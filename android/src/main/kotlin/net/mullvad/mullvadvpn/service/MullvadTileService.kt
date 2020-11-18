@@ -34,6 +34,7 @@ class MullvadTileService : TileService() {
         super.onStartListening()
 
         listener.onStateChange = { state ->
+            android.util.Log.d("mullvad", "Quick settings tile tunnel state: $state")
             secured = when (state) {
                 is TunnelState.Disconnected -> false
                 is TunnelState.Connecting -> true
@@ -75,11 +76,14 @@ class MullvadTileService : TileService() {
     }
 
     private fun updateTileState() {
+        android.util.Log.d("mullvad", "Updating quick settings tile")
         qsTile?.apply {
             if (secured) {
+                android.util.Log.d("mullvad", "    secured tile")
                 state = Tile.STATE_ACTIVE
                 icon = securedIcon
             } else {
+                android.util.Log.d("mullvad", "    unsecured tile")
                 state = Tile.STATE_INACTIVE
                 icon = unsecuredIcon
             }
