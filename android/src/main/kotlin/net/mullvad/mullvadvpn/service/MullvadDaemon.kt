@@ -27,6 +27,8 @@ class MullvadDaemon(val vpnService: MullvadVpnService) {
         System.loadLibrary("mullvad_jni")
         initialize(vpnService, vpnService.cacheDir.absolutePath, vpnService.filesDir.absolutePath)
 
+        android.util.Log.d("mullvad", "Daemon started ($daemonInterfaceAddress)")
+
         onSettingsChange.notify(getSettings())
     }
 
@@ -111,6 +113,7 @@ class MullvadDaemon(val vpnService: MullvadVpnService) {
     }
 
     fun shutdown() {
+        android.util.Log.d("mullvad", "Requesting daemon to shutdown ($daemonInterfaceAddress)")
         shutdown(daemonInterfaceAddress)
     }
 
