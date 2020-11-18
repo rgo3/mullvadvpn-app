@@ -62,6 +62,7 @@ class MullvadTileService : TileService() {
             intent.action = MullvadVpnService.KEY_CONNECT_ACTION
         }
 
+        android.util.Log.d("mullvad", "Quick settings tile clicked (${intent.action})")
         if (Build.VERSION.SDK_INT >= 26) {
             startForegroundService(intent)
         } else {
