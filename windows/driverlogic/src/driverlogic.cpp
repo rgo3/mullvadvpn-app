@@ -797,30 +797,66 @@ std::filesystem::path GetCurrentModulePath()
 	return std::filesystem::path(pathBuffer.begin(), pathBuffer.end());
 }
 
+class WintunDll
+{
+public:
+
+	WintunDll() : dllHandle(nullptr)
+	{
+		auto wintunPath = GetCurrentModulePath().replace_filename(L"wintun.dll");
+		dllHandle = LoadLibraryExW(wintunPath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+
+		if (nullptr == dllHandle)
+		{
+			THROW_WINDOWS_ERROR(GetLastError(), "LoadLibraryExW");
+		}
+
+		try
+		{
+			createAdapter = reinterpret_cast<WINTUN_CREATE_ADAPTER_FUNC>(getProcAddress("WintunCreateAdapter"));
+			openAdapter = reinterpret_cast<WINTUN_OPEN_ADAPTER_FUNC>(getProcAddress("WintunOpenAdapter"));
+			freeAdapter = reinterpret_cast<WINTUN_FREE_ADAPTER_FUNC>(getProcAddress("WintunFreeAdapter"));
+			deletePoolDriver = reinterpret_cast<WINTUN_DELETE_POOL_DRIVER_FUNC>(getProcAddress("WintunDeletePoolDriver"));
+		}
+		catch (...)
+		{
+			FreeLibrary(dllHandle);
+			throw;
+		}
+	}
+
+	~WintunDll()
+	{
+		if (nullptr != dllHandle)
+		{
+			FreeLibrary(dllHandle);
+		}
+	}
+
+	WINTUN_CREATE_ADAPTER_FUNC createAdapter;
+	WINTUN_OPEN_ADAPTER_FUNC openAdapter;
+	WINTUN_FREE_ADAPTER_FUNC freeAdapter;
+	WINTUN_DELETE_POOL_DRIVER_FUNC deletePoolDriver;
+
+private:
+
+	FARPROC getProcAddress(const char *procName)
+	{
+		const auto result = GetProcAddress(dllHandle, procName);
+		if (nullptr == result)
+		{
+			THROW_WINDOWS_ERROR(GetLastError(), "GetProcAddress");
+		}
+		return result;
+	}
+
+	HMODULE dllHandle;
+};
+
 int HandleWintunCommands(int argc, const wchar_t *argv[])
 {
-	auto wintunPath = GetCurrentModulePath().replace_filename(L"wintun.dll");
-	auto wintunHandle = LoadLibraryExW(wintunPath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+	WintunDll wintun;
 
-	if (nullptr == wintunHandle)
-	{
-		std::wcerr << L"Failed to load wintun.dll: " << GetLastError() << std::endl;
-		return GENERAL_ERROR;
-	}
-
-	const auto WintunCreateAdapter = reinterpret_cast<WINTUN_CREATE_ADAPTER_FUNC>(GetProcAddress(wintunHandle, "WintunCreateAdapter"));
-	const auto WintunOpenAdapter = reinterpret_cast<WINTUN_OPEN_ADAPTER_FUNC>(GetProcAddress(wintunHandle, "WintunOpenAdapter"));
-	const auto WintunFreeAdapter = reinterpret_cast<WINTUN_FREE_ADAPTER_FUNC>(GetProcAddress(wintunHandle, "WintunFreeAdapter"));
-	const auto WintunDeletePoolDriver = reinterpret_cast<WINTUN_DELETE_POOL_DRIVER_FUNC>(GetProcAddress(wintunHandle, "WintunDeletePoolDriver"));
-
-	if (!WintunCreateAdapter || !WintunOpenAdapter || !WintunDeletePoolDriver)
-	{
-		FreeLibrary(wintunHandle);
-		std::wcerr << L"Failed to locate wintun functions: " << GetLastError() << std::endl;
-		return GENERAL_ERROR;
-	}
-
-	// argv[1] == "wintun"
 	if (argc < 3)
 	{
 		goto INVALID_ARGUMENTS;
@@ -844,7 +880,7 @@ int HandleWintunCommands(int argc, const wchar_t *argv[])
 			requestGuid = &guidObject;
 		}
 
-		const auto handle = WintunCreateAdapter(
+		const auto handle = wintun.createAdapter(
 			pool,
 			adapter,
 			requestGuid,
@@ -860,10 +896,10 @@ int HandleWintunCommands(int argc, const wchar_t *argv[])
 			}
 			else
 			{
-				THROW_WINDOWS_ERROR(status, "WintunOpenAdapter");
+				THROW_WINDOWS_ERROR(status, "wintun.createAdapter");
 			}
 		}
-		WintunFreeAdapter(handle);
+		wintun.freeAdapter(handle);
 	}
 	else if (0 == _wcsicmp(argv[2], L"delete-pool-driver"))
 	{
@@ -874,7 +910,7 @@ int HandleWintunCommands(int argc, const wchar_t *argv[])
 
 		const wchar_t *pool = argv[3];
 
-		WintunDeletePoolDriver(pool, nullptr);
+		wintun.deletePoolDriver(pool, nullptr);
 	}
 	else if (0 == _wcsicmp(argv[2], L"adapter-exists"))
 	{
@@ -886,7 +922,7 @@ int HandleWintunCommands(int argc, const wchar_t *argv[])
 		const wchar_t *pool = argv[3];
 		const wchar_t *adapter = argv[4];
 
-		const auto handle = WintunOpenAdapter(pool, adapter);
+		const auto handle = wintun.openAdapter(pool, adapter);
 
 		if (nullptr == handle)
 		{
@@ -897,10 +933,10 @@ int HandleWintunCommands(int argc, const wchar_t *argv[])
 			}
 			else
 			{
-				THROW_WINDOWS_ERROR(status, "WintunOpenAdapter");
+				THROW_WINDOWS_ERROR(status, "wintun.openAdapter");
 			}
 		}
-		WintunFreeAdapter(handle);
+		wintun.freeAdapter(handle);
 	}
 	else
 	{
