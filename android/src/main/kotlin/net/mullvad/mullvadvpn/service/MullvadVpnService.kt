@@ -7,7 +7,6 @@ import android.net.VpnService
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import java.io.File
 import kotlin.properties.Delegates.observable
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -20,8 +19,6 @@ import net.mullvad.mullvadvpn.service.tunnelstate.TunnelStateUpdater
 import net.mullvad.mullvadvpn.ui.MainActivity
 import net.mullvad.talpid.TalpidVpnService
 import net.mullvad.talpid.util.EventNotifier
-
-private const val RELAYS_FILE = "relays.json"
 
 class MullvadVpnService : TalpidVpnService() {
     companion object {
@@ -224,7 +221,6 @@ class MullvadVpnService : TalpidVpnService() {
 
     private fun startDaemon() = GlobalScope.launch(Dispatchers.Default) {
         Log.d(TAG, "Starting daemon")
-        prepareFiles()
         splitTunneling.await()
         daemonInstance.start()
     }
@@ -236,24 +232,6 @@ class MullvadVpnService : TalpidVpnService() {
             setUpInstance(daemon, settings)
         } else {
             restart()
-        }
-    }
-
-    private fun prepareFiles() {
-        FileMigrator(File("/data/data/net.mullvad.mullvadvpn"), filesDir).apply {
-            migrate(RELAYS_FILE)
-            migrate("settings.json")
-            migrate("daemon.log")
-            migrate("daemon.old.log")
-            migrate("wireguard.log")
-            migrate("wireguard.old.log")
-        }
-
-        val shouldOverwriteRelayList =
-            lastUpdatedTime() > File(filesDir, RELAYS_FILE).lastModified()
-
-        FileResourceExtractor(this).apply {
-            extract(RELAYS_FILE, shouldOverwriteRelayList)
         }
     }
 
@@ -327,9 +305,5 @@ class MullvadVpnService : TalpidVpnService() {
         }
 
         startActivity(intent)
-    }
-
-    private fun lastUpdatedTime(): Long {
-        return packageManager.getPackageInfo(packageName, 0).lastUpdateTime
     }
 }
